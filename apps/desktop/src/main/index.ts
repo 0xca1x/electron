@@ -1,4 +1,5 @@
-import { app, BrowserWindow } from 'electron/main'
+import { app, BrowserWindow } from 'electron'
+import { join } from 'node:path'
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -7,7 +8,11 @@ const createWindow = () => {
     center: true
   })
 
-  win.loadFile('index.html')
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL)
+  } else {
+    win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
+  }
 }
 
 app.whenReady().then(() => {

@@ -1,24 +1,78 @@
 {
   "name": "desktop",
+  "productName": "Desktop",
   "version": "0.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Example Electron application",
+  "main": "out/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "start": "pnpm build && electron .",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "app:dir": "pnpm build && electron-builder --dir",
+    "app:dist": "pnpm build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
   "keywords": [],
-  "author": "",
-  "license": "",
+  "author": "Example <example@example.com>",
+  "homepage": "https://example.com",
+  "license": "UNLICENSED",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^11.20.0",
+      "version": "11",
       "onFail": "download"
     }
   },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
   "type": "module",
   "devDependencies": {
-    "electron": "^44.5.1"
+    "@babel/core": "^7.29.7",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^24.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vite-plugin-electron": "^1.1.2"
+  },
+  "build": {
+    "appId": "com.example.desktop",
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "category": "Utility"
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "${productName}",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-${arch}-setup.${ext}"
+    }
   }
 }

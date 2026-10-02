@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Validate release version and notes
+        run: node scripts/release-notes.mjs
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: mac-arm64
+            args: --mac --arm64
+          - os: macos-15-intel
+            artifact: mac-x64
+            args: --mac --x64
+          - os: macos-latest
+            artifact: mac-universal
+            args: --mac --universal
+          - os: windows-latest
+            artifact: windows-x64
+            args: --win --x64
+          - os: windows-11-arm
+            artifact: windows-arm64
+            args: --win --arm64
+          - os: ubuntu-latest
+            artifact: linux-x64
+            args: --linux AppImage deb rpm --x64
+          - os: ubuntu-24.04-arm
+            artifact: linux-arm64
+            args: --linux AppImage deb rpm --arm64
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        working-directory: apps/desktop
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/desktop/package.json
+          cache: true
+          cache_dependency_path: apps/desktop/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Set up LXD
+        if: startsWith(matrix.artifact, 'linux-')
+        uses: canonical/setup-lxd@v1
+
+      - name: Install Snapcraft
+        if: startsWith(matrix.artifact, 'linux-')
+        run: sudo snap install snapcraft --classic
+
+      - name: Build installer
+        run: pnpm exec electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build Snap
+        if: startsWith(matrix.artifact, 'linux-')
+        run: node ../../scripts/build-snap.mjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.snap
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.rpm
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Read release notes
+        run: node scripts/release-notes.mjs > release-notes.md
+
+      - name: Create GitHub Release
+        run: gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --verify-tag --notes-file release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
